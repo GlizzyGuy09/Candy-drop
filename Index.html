@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candy Collector Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: white;
+            font-family: 'Arial', sans-serif;
+        }
+
+        #gameCanvas {
+            border: none;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            font-weight: bold;
+            color: #333;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            font-weight: bold;
+            color: #ff1493;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+
+        .startButton {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 30px;
+            font-size: 20px;
+            background-color: #ff1493;
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            display: none;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .startButton:hover {
+            background-color: #ff69b4;
+        }
+
+        .bucket {
+            background-color: #8B4513;
+            border: 3px solid #5A2A1A;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            width: 100px;
+            height: 50px;
+            position: absolute;
+            bottom: 10px;
+            cursor: pointer;
+            text-align: center;
+            line-height: 50px;
+            font-size: 14px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .bucketText {
+            font-size: 12px; /* Smaller font size for the text inside the bucket */
+        }
+
+    </style>
+</head>
+<body>
+    <div class="score">Score: 0</div>
+    <div class="gameOver">Game Over! Your Score: 0</div>
+    <button class="startButton" onclick="startGame()">Start Game</button>
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.querySelector('.score');
+        const gameOverDisplay = document.querySelector('.gameOver');
+        const startButton = document.querySelector('.startButton');
+        let score = 0;
+        let gameActive = false;
+        let candies = [];
+        let fallingSpeed = 3;  // Initial falling speed is fast
+        let bucket = { x: canvas.width / 2 - 50, y: canvas.height - 50, width: 100, height: 50, color: "#8B4513" };
+        let isDragging = false;
+        let offsetX = 0;
+
+        // Start game
+        function startGame() {
+            score = 0;
+            gameActive = true;
+            fallingSpeed = 3;  // Reset falling speed to start fast
+            candies = [];
+            startButton.style.display = 'none';
+            gameOverDisplay.style.display = 'none';
+            scoreDisplay.textContent = "Score: " + score;
+            gameLoop();
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (!gameActive) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the bucket
+            ctx.fillStyle = bucket.color;
+            ctx.fillRect(bucket.x, bucket.y, bucket.width, bucket.height);
+
+            // Draw "Candy Bucket" text inside the bucket
+            ctx.fillStyle = "#fff";
+            ctx.font = "14px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("Candy Bucket", bucket.x + bucket.width / 2, bucket.y + bucket.height / 2 + 4);
+
+            // Handle falling candies
+            for (let i = 0; i < candies.length; i++) {
+                let candy = candies[i];
+                candy.y += candy.speed;
+
+                // If the candy touches the bottom, remove it from the screen
+                if (candy.y + candy.size >= canvas.height) {
+                    gameOver(); // Game over if the candy touches the ground
+                    return; // Stop the game loop
+                }
+
+                // Draw the candy
+                ctx.fillStyle = candy.color;
+                ctx.beginPath();
+                ctx.arc(candy.x, candy.y, candy.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Create new candies if there's space
+            if (candies.length < 2) {
+                createCandy();
+            }
+
+            // Check if the bucket catches any candies
+            for (let i = 0; i < candies.length; i++) {
+                let candy = candies[i];
+                if (candy.y + candy.size >= bucket.y && candy.x >= bucket.x && candy.x <= bucket.x + bucket.width) {
+                    score += 10; // Increase score when candy is caught
+                    candies.splice(i, 1); // Remove the caught candy
+                    scoreDisplay.textContent = "Score: " + score;
+                    break;
+                }
+            }
+
+            // Increase falling speed over time
+            fallingSpeed += 0.01;  // Gradually increase speed
+
+            requestAnimationFrame(gameLoop); // Continue the game loop
+        }
+
+        // Create new falling candy
+        function createCandy() {
+            let x = Math.random() * (canvas.width - 30);
+            let size = 30; // Set the candy size to 30
+            let color = randomColor();
+            let speed = fallingSpeed;
+
+            // Ensure candies don't overlap by checking positions
+            for (let i = 0; i < candies.length; i++) {
+                if (Math.abs(candies[i].x - x) < size * 2) {
+                    x = Math.random() * (canvas.width - 30); // Recalculate position
+                    i = -1; // Restart the check
+                }
+            }
+
+            candies.push({ x: x, y: 0, size: size, speed: speed, color: color });
+        }
+
+        // End the game
+        function gameOver() {
+            gameActive = false;
+            gameOverDisplay.textContent = `Game Over! Your Score: ${score}`;
+            gameOverDisplay.style.display = 'block';
+            startButton.style.display = 'block';  // Show start button
+        }
+
+        // Generate random color for candy
+        function randomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        // Handle mouse and touch events for dragging the bucket
+        canvas.addEventListener('mousedown', function(event) {
+            if (event.clientY > canvas.height - 120) { // Lower the dragger
+                isDragging = true;
+                offsetX = event.clientX - bucket.x;
+            }
+        });
+
+        canvas.addEventListener('mousemove', function(event) {
+            if (isDragging) {
+                bucket.x = event.clientX - offsetX;
+                // Keep bucket within canvas bounds
+                bucket.x = Math.max(0, Math.min(bucket.x, canvas.width - bucket.width));
+            }
+        });
+
+        canvas.addEventListener('mouseup', function() {
+            isDragging = false;
+        });
+
+        // For touch events (mobile)
+        canvas.addEventListener('touchstart', function(event) {
+            if (event.touches[0].clientY > canvas.height - 120) {
+                isDragging = true;
+                offsetX = event.touches[0].clientX - bucket.x;
+            }
+        });
+
+        canvas.addEventListener('touchmove', function(event) {
+            if (isDragging) {
+                bucket.x = event.touches[0].clientX - offsetX;
+                // Keep bucket within canvas bounds
+                bucket.x = Math.max(0, Math.min(bucket.x, canvas.width - bucket.width));
+            }
+        });
+
+        canvas.addEventListener('touchend', function() {
+            isDragging = false;
+        });
+
+        // Start the game button
+        startButton.style.display = 'block'; // Show start button when the page loads
+    </script>
+</body>
+</html>
